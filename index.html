@@ -423,6 +423,8 @@ function getRecommendation() {
 
   scored.sort((a, b) => b.score - a.score);
   return scored[0];
+}
+
 function fetchAiNote(movie) {
   const noteEl = document.getElementById('ai-note');
 
