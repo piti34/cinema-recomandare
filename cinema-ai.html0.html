@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>CinemaAI</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --gold: #d4af37;
+    --gold-dim: rgba(212,175,55,0.5);
+    --gold-faint: rgba(212,175,55,0.15);
+    --green: rgba(74,222,128,0.8);
+    --green-bg: rgba(74,222,128,0.12);
+    --red: rgba(248,113,113,0.8);
+    --red-bg: rgba(248,113,113,0.12);
+    --bg: #0a0a0f;
+    --card: rgba(28,24,42,0.97);
+    --text: #fff;
+    --text-dim: rgba(255,255,255,0.55);
+    --text-faint: rgba(255,255,255,0.25);
+    --border: rgba(255,255,255,0.07);
+  }
+  body {
+    background: var(--bg);
+    min-height: 100vh;
+    font-family: 'DM Sans', sans-serif;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 20px 16px 40px;
+  }
+  .app { width: 100%; max-width: 400px; }
+
+  /* Header */
+  .header { text-align: center; margin-bottom: 24px; padding-top: 8px; }
+  .header-sub { font-size: 10px; letter-spacing: 3px; color: var(--gold-dim); font-weight: 500; text-transform: uppercase; margin-bottom: 6px; }
+  .header-title { font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+  .header-title span { color: var(--gold); }
+
+  /* Card */
+  .card {
+    background: var(--card);
+    border-radius: 24px;
+    border: 1px solid var(--gold-faint);
+    overflow: hidden;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04);
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+  .card.visible { opacity: 1; transform: translateY(0); }
+
+  /* Poster */
+  .poster {
+    height: 190px;
+    background: linear-gradient(135deg, #1a1528, #2d1f3d 50%, #1a2030);
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+  }
+  .poster::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 30% 40%, rgba(212,175,55,0.07) 0%, transparent 60%);
+  }
+  .poster-emoji { font-size: 75px; filter: drop-shadow(0 4px 20px rgba(0,0,0,0.5)); position: relative; z-index: 1; }
+  .rating-badge {
+    position: absolute; top: 14px; right: 14px;
+    background: rgba(0,0,0,0.55); backdrop-filter: blur(10px);
+    padding: 5px 12px; border-radius: 20px;
+    border: 1px solid rgba(212,175,55,0.3);
+    display: flex; align-items: center; gap: 5px;
+    font-size: 13px; font-weight: 500; color: var(--text);
+  }
+  .rating-badge span { color: var(--gold); }
+  .year-badge {
+    position: absolute; bottom: 14px; left: 14px;
+    font-size: 11px; font-weight: 500; letter-spacing: 1px;
+    color: var(--text-faint);
+  }
+
+  /* Body */
+  .body { padding: 20px 20px 18px; }
+  .movie-title { font-family: 'Playfair Display', serif; font-size: 21px; font-weight: 700; color: var(--text); line-height: 1.2; margin-bottom: 3px; }
+  .movie-director { font-size: 11px; color: var(--gold-dim); margin-bottom: 10px; }
+  .genres { margin-bottom: 12px; }
+  .genre-tag {
+    display: inline-block; padding: 2px 10px;
+    border: 1px solid rgba(212,175,55,0.25); border-radius: 20px;
+    font-size: 10px; font-weight: 500; color: var(--gold-dim);
+    margin: 2px; letter-spacing: 0.5px;
+  }
+  .desc { font-size: 12.5px; line-height: 1.65; color: var(--text-dim); margin-bottom: 14px; }
+  .divider { height: 1px; background: linear-gradient(90deg, transparent, rgba(212,175,55,0.18), transparent); margin-bottom: 14px; }
+
+  /* AI Note */
+  .ai-note { min-height: 50px; margin-bottom: 18px; }
+  .ai-note p { font-family: 'Playfair Display', serif; font-style: italic; font-size: 12.5px; line-height: 1.7; color: rgba(212,175,55,0.75); }
+  .shimmer-line { height: 12px; border-radius: 4px; margin-bottom: 7px;
+    background: linear-gradient(90deg, #2a2a3a 25%, #3a3a4f 50%, #2a2a3a 75%);
+    background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+  @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+
+  /* Votes */
+  .actions { display: flex; align-items: center; justify-content: space-between; }
+  .vote-btns { display: flex; gap: 10px; }
+  .vote-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: none; border: none; cursor: pointer; padding: 0;
+  }
+  .vote-circle {
+    width: 50px; height: 50px; border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+    border: 1.5px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    transition: all 0.2s ease;
+  }
+  .vote-circle.liked { background: var(--green-bg); border-color: var(--green); box-shadow: 0 0 18px rgba(74,222,128,0.18); }
+  .vote-circle.disliked { background: var(--red-bg); border-color: var(--red); box-shadow: 0 0 18px rgba(248,113,113,0.18); }
+  .vote-label { font-size: 9px; font-weight: 500; color: var(--text-faint); transition: color 0.2s; }
+  .vote-label.liked { color: var(--green); }
+  .vote-label.disliked { color: var(--red); }
+  .bounce { animation: bounce 0.5s ease; }
+  @keyframes bounce { 0%{transform:scale(1)} 30%{transform:scale(1.3)} 60%{transform:scale(0.9)} 100%{transform:scale(1)} }
+
+  .next-btn {
+    cursor: pointer; border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.04); color: var(--text-dim);
+    padding: 10px 20px; border-radius: 40px;
+    font-family: 'DM Sans', sans-serif; font-size: 12px; letter-spacing: 0.5px;
+    transition: all 0.2s ease;
+  }
+  .next-btn:hover { background: rgba(255,255,255,0.09); color: var(--text); border-color: rgba(255,255,255,0.25); }
+
+  /* Stats */
+  .stats { display: flex; justify-content: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .stat-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 12px; border-radius: 20px;
+    font-size: 10px; font-weight: 500;
+  }
+  .stat-badge.green { background: var(--green-bg); border: 1px solid rgba(74,222,128,0.18); color: var(--green); }
+  .stat-badge.red { background: var(--red-bg); border: 1px solid rgba(248,113,113,0.18); color: var(--red); }
+  .stat-badge.gray { background: rgba(255,255,255,0.04); border: 1px solid var(--border); color: var(--text-faint); }
+
+  .footer { text-align: center; margin-top: 14px; font-size: 9.5px; color: var(--text-faint); letter-spacing: 0.5px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab {
+    flex: 1; padding: 9px; border-radius: 12px; border: 1px solid var(--border);
+    background: rgba(255,255,255,0.03); color: var(--text-faint);
+    font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s; text-align: center; letter-spacing: 0.3px;
+  }
+  .tab.active { background: var(--gold-faint); border-color: var(--gold-dim); color: var(--gold); }
+
+  /* History panel */
+  .history-panel { display: none; }
+  .history-panel.show { display: block; }
+  .history-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; border-radius: 14px;
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+  .history-emoji { font-size: 24px; }
+  .history-info { flex: 1; }
+  .history-title { font-size: 13px; font-weight: 500; color: var(--text); font-family: 'Playfair Display', serif; }
+  .history-year { font-size: 10px; color: var(--text-faint); }
+  .history-vote { font-size: 18px; }
+  .reset-btn {
+    width: 100%; padding: 12px; border-radius: 14px;
+    background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.2);
+    color: var(--red); font-family: 'DM Sans', sans-serif; font-size: 12px;
+    cursor: pointer; margin-top: 12px; transition: all 0.2s;
+  }
+  .reset-btn:hover { background: rgba(248,113,113,0.15); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-sub">Powered by AI</div>
+    <div class="header-title">Cinema<span>AI</span></div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('discover')">🎬 Descoperă</div>
+    <div class="tab" onclick="showTab('history')">📋 Istoricul meu</div>
+  </div>
+
+  <!-- Discover Tab -->
+  <div id="discover-tab">
+    <div class="card" id="card">
+      <div class="poster">
+        <div class="poster-emoji" id="poster">🎬</div>
+        <div class="rating-badge"><span>★</span><span id="rating">--</span></div>
+        <div class="year-badge" id="year">----</div>
+      </div>
+      <div class="body">
+        <div class="movie-title" id="title">Se încarcă...</div>
+        <div class="movie-director" id="director"></div>
+        <div class="genres" id="genres"></div>
+        <div class="desc" id="desc"></div>
+        <div class="divider"></div>
+        <div class="ai-note" id="ai-note">
+          <div class="shimmer-line" style="width:90%"></div>
+          <div class="shimmer-line" style="width:70%"></div>
+        </div>
+        <div class="actions">
+          <div class="vote-btns">
+            <button class="vote-btn" onclick="vote('like')" id="like-btn">
+              <div class="vote-circle" id="like-circle">👍</div>
+              <span class="vote-label" id="like-label">Îmi place</span>
+            </button>
+            <button class="vote-btn" onclick="vote('dislike')" id="dislike-btn">
+              <div class="vote-circle" id="dislike-circle">👎</div>
+              <span class="vote-label" id="dislike-label">Nu-mi place</span>
+            </button>
+          </div>
+          <button class="next-btn" onclick="nextMovie()">Următor →</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat-badge green">👍 <span id="liked-count">0</span> apreciate</div>
+      <div class="stat-badge red">👎 <span id="disliked-count">0</span> respinse</div>
+      <div class="stat-badge gray">🎬 <span id="seen-count">0</span> văzute</div>
+    </div>
+    <div class="footer">Recomandări personalizate cu AI ✦ Preferințele se salvează local</div>
+  </div>
+
+  <!-- History Tab -->
+  <div id="history-tab" class="history-panel">
+    <div id="history-list"></div>
+    <button class="reset-btn" onclick="resetAll()">🗑️ Resetează toate preferințele</button>
+  </div>
+</div>
+
+<script>
+const MOVIES = [
+  // ACȚIUNE / AVENTURĂ
+  {id:1,title:"Dune: Part Two",year:2024,genre:["Sci-Fi","Aventură"],dir:"Denis Villeneuve",rating:8.5,e:"🏜️",desc:"Paul Atreides se unește cu friemenii pentru a cuceri galaxia.",tags:["epic","sci-fi","vizual"]},
+  {id:2,title:"Mad Max: Fury Road",year:2015,genre:["Acțiune","Aventură"],dir:"George Miller",rating:8.1,e:"🚗",desc:"O urmărire nebunească prin deșert cu efecte practice spectaculoase.",tags:["acțiune","adrenalină","vizual"]},
+  {id:3,title:"Top Gun: Maverick",year:2022,genre:["Acțiune","Dramă"],dir:"Joseph Kosinski",rating:8.3,e:"✈️",desc:"Maverick revine să antreneze o nouă generație de piloți de elită.",tags:["acțiune","emoționant","nostalgie"]},
+  {id:4,title:"The Batman",year:2022,genre:["Acțiune","Thriller"],dir:"Matt Reeves",rating:7.8,e:"🦇",desc:"O versiune întunecată și noir a lui Batman investigând un serial killer.",tags:["noir","întunecat","thriller"]},
+  {id:5,title:"Civil War",year:2024,genre:["Acțiune","Dramă"],dir:"Alex Garland",rating:7.2,e:"📸",desc:"Jurnaliști traversează un SUA aflat în război civil.",tags:["intens","politic","acțiune"]},
+  {id:6,title:"Mission: Impossible – Dead Reckoning",year:2023,genre:["Acțiune","Thriller"],dir:"Christopher McQuarrie",rating:7.7,e:"💣",desc:"Ethan Hunt luptă împotriva unei IA rogue care amenință omenirea.",tags:["acțiune","adrenalină","spectacol"]},
+  {id:7,title:"Avatar: The Way of Water",year:2022,genre:["Sci-Fi","Aventură"],dir:"James Cameron",rating:7.6,e:"🌊",desc:"Familia Sully explorează oceanele lui Pandora în fuga de dușmani.",tags:["vizual","epic","sci-fi"]},
+  {id:8,title:"Black Panther: Wakanda Forever",year:2022,genre:["Acțiune","Aventură"],dir:"Ryan Coogler",rating:6.7,e:"🐾",desc:"Wakanda se confruntă cu un nou inamic puternic venind din adâncuri.",tags:["acțiune","emoționant","diversitate"]},
+
+  // DRAMĂ
+  {id:9,title:"Oppenheimer",year:2023,genre:["Dramă","Istorie"],dir:"Christopher Nolan",rating:8.9,e:"☢️",desc:"Omul care a creat bomba atomică și dilema sa morală devastatoare.",tags:["istoric","intens","dramă"]},
+  {id:10,title:"Poor Things",year:2023,genre:["Dramă","Fantasy"],dir:"Yorgos Lanthimos",rating:8.1,e:"🧠",desc:"O femeie renăscută supranatural explorează lumea cu ochi proaspeți.",tags:["ciudat","feminist","suprarealist"]},
+  {id:11,title:"The Holdovers",year:2023,genre:["Comedie","Dramă"],dir:"Alexander Payne",rating:7.9,e:"🎓",desc:"Un profesor acru și un elev rebel, blocați împreună în vacanța de iarnă.",tags:["caldură","comedie","personaje"]},
+  {id:12,title:"Killers of the Flower Moon",year:2023,genre:["Crimă","Dramă"],dir:"Martin Scorsese",rating:7.7,e:"🌼",desc:"Ucideri misterioase ale membrilor tribului Osage în Oklahoma anilor '20.",tags:["istoric","crimă","epic"]},
+  {id:13,title:"Past Lives",year:2023,genre:["Romantic","Dramă"],dir:"Celine Song",rating:7.9,e:"💫",desc:"Două iubiri de copilărie se reîntâlnesc după decenii.",tags:["romantic","emoționant","intim"]},
+  {id:14,title:"All of Us Strangers",year:2023,genre:["Romantic","Dramă"],dir:"Andrew Haigh",rating:7.9,e:"👻",desc:"Un scenarist singuratic se îndrăgostește și se reconnectează cu părinții decedați.",tags:["emoționant","supranatural","romantic"]},
+  {id:15,title:"Tár",year:2022,genre:["Dramă","Muzică"],dir:"Todd Field",rating:7.5,e:"🎼",desc:"O dirijoare celebră se confruntă cu consecințele comportamentului său.",tags:["psihologic","muzică","complex"]},
+  {id:16,title:"The Banshees of Inisherin",year:2022,genre:["Comedie","Dramă"],dir:"Martin McDonagh",rating:7.7,e:"🪗",desc:"Doi prieteni vechi se despart inexplicabil pe o insulă irlandeză.",tags:["melancolic","irlandez","negru"]},
+  {id:17,title:"Women Talking",year:2022,genre:["Dramă"],dir:"Sarah Polley",rating:6.9,e:"🕊️",desc:"Femei dintr-o comunitate religioasă dezbat ce să facă după ce au suferit abuzuri.",tags:["feminist","emoționant","important"]},
+  {id:18,title:"The Fabelmans",year:2022,genre:["Dramă","Biografie"],dir:"Steven Spielberg",rating:7.6,e:"🎥",desc:"Semi-autobiografia lui Spielberg despre copilărie și pasiunea pentru film.",tags:["autobiografic","emoționant","cinema"]},
+  {id:19,title:"Aftersun",year:2022,genre:["Dramă"],dir:"Charlotte Wells",rating:7.7,e:"☀️",desc:"O fiică adulță caută să înțeleagă vacanta cu tatăl ei.",tags:["melancolic","memoriu","subtil"]},
+  {id:20,title:"Belfast",year:2021,genre:["Dramă","Biografie"],dir:"Kenneth Branagh",rating:7.3,e:"🇮🇪",desc:"Copilăria unui băiat în Belfast-ul anilor '60, în plin conflict.",tags:["autobiografic","alb-negru","emoționant"]},
+
+  // THRILLER / MISTER
+  {id:21,title:"Anatomy of a Fall",year:2023,genre:["Thriller","Dramă"],dir:"Justine Triet",rating:7.7,e:"⚖️",desc:"O femeie judecată pentru moartea misterioasă a soțului ei.",tags:["tribunal","mister","psihologic"]},
+  {id:22,title:"Saltburn",year:2023,genre:["Thriller","Dramă"],dir:"Emerald Fennell",rating:7.1,e:"🏰",desc:"Un student obsedat de viața colegului său bogat și enigmatic.",tags:["thriller","întunecat","obsesie"]},
+  {id:23,title:"Knives Out",year:2019,genre:["Mister","Comedie"],dir:"Rian Johnson",rating:7.9,e:"🔪",desc:"Un detectiv investigheaza moartea unui scriitor bogat.",tags:["mister","comedie","inteligent"]},
+  {id:24,title:"Glass Onion",year:2022,genre:["Mister","Comedie"],dir:"Rian Johnson",rating:7.1,e:"🧅",desc:"Detectivul Blanc investigheaza un mister pe o insulă privată.",tags:["mister","comedie","inteligent"]},
+  {id:25,title:"Gone Girl",year:2014,genre:["Thriller","Mister"],dir:"David Fincher",rating:8.1,e:"🪢",desc:"Dispariția misterioasă a unei femei destabilizează întreaga Americă.",tags:["thriller","răsturnări","fincher"]},
+  {id:26,title:"Se7en",year:1995,genre:["Thriller","Crimă"],dir:"David Fincher",rating:8.6,e:"📦",desc:"Doi detectivi vânează un criminal în serie cu metode biblice.",tags:["clasic","noir","thriller"]},
+  {id:27,title:"Parasite",year:2019,genre:["Thriller","Dramă"],dir:"Bong Joon-ho",rating:8.5,e:"🏠",desc:"O familie săracă se infiltrează în viața unei familii bogate.",tags:["clasă","coreean","răsturnări"]},
+  {id:28,title:"Prisoners",year:2013,genre:["Thriller","Crimă"],dir:"Denis Villeneuve",rating:8.1,e:"🔒",desc:"Un tată disperat caută singur copilul dispărut.",tags:["intens","moral","thriller"]},
+  {id:29,title:"Zodiac",year:2007,genre:["Thriller","Crimă"],dir:"David Fincher",rating:7.7,e:"♒",desc:"Jurnaliști și detectivi obsedați de identitatea Zodiac Killer.",tags:["procedural","real","thriller"]},
+  {id:30,title:"The Silence of the Lambs",year:1991,genre:["Thriller","Horror"],dir:"Jonathan Demme",rating:8.6,e:"🦋",desc:"Un agent FBI colaborează cu Hannibal Lecter pentru a prinde un criminal.",tags:["clasic","iconic","thriller"]},
+
+  // HORROR
+  {id:31,title:"Hereditary",year:2018,genre:["Horror"],dir:"Ari Aster",rating:7.3,e:"🪑",desc:"O familie se confruntă cu un trecut ocult terifiant după un deces.",tags:["horror","psihologic","tulburător"]},
+  {id:32,title:"Midsommar",year:2019,genre:["Horror"],dir:"Ari Aster",rating:7.1,e:"🌸",desc:"Un grup de studenți participă la un festival suedez cu ritualuri sinistre.",tags:["horror","folk","vizual"]},
+  {id:33,title:"Get Out",year:2017,genre:["Horror","Thriller"],dir:"Jordan Peele",rating:7.7,e:"🌀",desc:"Un bărbat de culoare descoperă un secret îngrozitor la familia iubitei sale.",tags:["social","horror","important"]},
+  {id:34,title:"The Witch",year:2015,genre:["Horror"],dir:"Robert Eggers",rating:6.9,e:"🌲",desc:"O familie puritană terorizată de o forță malefică în 1630.",tags:["atmosferic","lent","horror"]},
+  {id:35,title:"Talk to Me",year:2022,genre:["Horror"],dir:"Danny & Michael Philippou",rating:7.1,e:"🖐️",desc:"Tineri care invocă spirite prin intermediul unei mâini mumificate.",tags:["horror","tineri","viral"]},
+  {id:36,title:"The Substance",year:2024,genre:["Horror","Sci-Fi"],dir:"Coralie Fargeat",rating:7.4,e:"💉",desc:"O actriță ia un serum care îi creează un dublu mai tânăr.",tags:["body horror","feminist","provocator"]},
+
+  // COMEDIE
+  {id:37,title:"Barbie",year:2023,genre:["Comedie","Fantasy"],dir:"Greta Gerwig",rating:6.9,e:"👗",desc:"Barbie pornește într-o aventură în lumea reală pentru a-și găsi scopul.",tags:["colorat","feminist","meta"]},
+  {id:38,title:"The Menu",year:2022,genre:["Comedie","Thriller"],dir:"Mark Mylod",rating:7.2,e:"🍽️",desc:"Un restaurant exclusivist cu un chef nebun și un meniu cu surprize fatale.",tags:["negru","satira","tensiune"]},
+  {id:39,title:"Triangle of Sadness",year:2022,genre:["Comedie","Dramă"],dir:"Ruben Östlund",rating:7.3,e:"🚢",desc:"Bogații și săracii își inversează rolurile după un naufragiu.",tags:["satira","clasă","comic"]},
+  {id:40,title:"The Favourite",year:2018,genre:["Comedie","Dramă"],dir:"Yorgos Lanthimos",rating:7.5,e:"🦆",desc:"Rivalitate între două femei pentru favoarea reginei Angliei.",tags:["perioadă","comic negru","lanthimos"]},
+  {id:41,title:"Promising Young Woman",year:2020,genre:["Comedie","Thriller"],dir:"Emerald Fennell",rating:7.5,e:"☕",desc:"O femeie traumatizată se răzbună pe bărbații nepedepsiți.",tags:["feminist","răzbunare","comic negru"]},
+
+  // ROMANTIC
+  {id:42,title:"Challengers",year:2024,genre:["Romantic","Dramă"],dir:"Luca Guadagnino",rating:7.6,e:"🎾",desc:"Un triunghi amoros între jucători de tenis explodează în tensiune.",tags:["romantic","tensiune","stilat"]},
+  {id:43,title:"Call Me by Your Name",year:2017,genre:["Romantic","Dramă"],dir:"Luca Guadagnino",rating:7.9,e:"🍑",desc:"O dragoste de vară în Italia între doi tineri.",tags:["romantic","italian","nostalgie"]},
+  {id:44,title:"Normal People",year:2020,genre:["Romantic","Dramă"],dir:"Lenny Abrahamson",rating:8.2,e:"💛",desc:"O poveste de dragoste complicată între doi tineri irlandezi.",tags:["romantic","intens","realist"]},
+  {id:45,title:"Portrait of a Lady on Fire",year:2019,genre:["Romantic","Dramă"],dir:"Céline Sciamma",rating:8.1,e:"🔥",desc:"O pictoriță se îndrăgostește de subiectul portretului ei în Franța secolului XVIII.",tags:["romantic","feminist","artistic"]},
+  {id:46,title:"Eternal Sunshine of the Spotless Mind",year:2004,genre:["Romantic","Sci-Fi"],dir:"Michel Gondry",rating:8.3,e:"🧊",desc:"Un bărbat vrea să șteargă amintirile despre fosta iubită.",tags:["unic","romantic","melancolic"]},
+
+  // SCI-FI
+  {id:47,title:"Interstellar",year:2014,genre:["Sci-Fi","Aventură"],dir:"Christopher Nolan",rating:8.7,e:"🌌",desc:"Astronauți traversează o gaură de vierme pentru a salva omenirea.",tags:["epic","nolan","emoționant"]},
+  {id:48,title:"Arrival",year:2016,genre:["Sci-Fi","Dramă"],dir:"Denis Villeneuve",rating:7.9,e:"🛸",desc:"O lingvistă încearcă să comunice cu extratereștri sosiți pe Pământ.",tags:["inteligent","emoționant","sci-fi"]},
+  {id:49,title:"Ex Machina",year:2014,genre:["Sci-Fi","Thriller"],dir:"Alex Garland",rating:7.7,e:"🤖",desc:"Un programator testează o IA umanoidă cu consecințe neașteptate.",tags:["IA","filosof","thriller"]},
+  {id:50,title:"Everything Everywhere All at Once",year:2022,genre:["Sci-Fi","Comedie"],dir:"Daniels",rating:7.8,e:"🥯",desc:"O femeie descoperă că poate accesa universuri paralele.",tags:["creativ","emoționant","haos"]},
+  {id:51,title:"The Martian",year:2015,genre:["Sci-Fi","Aventură"],dir:"Ridley Scott",rating:8.0,e:"🌕",desc:"Un astronaut supraviețuiește singur pe Marte cu ajutorul științei.",tags:["optimist","inteligent","supraviețuire"]},
+  {id:52,title:"Blade Runner 2049",year:2017,genre:["Sci-Fi","Neo-Noir"],dir:"Denis Villeneuve",rating:8.0,e:"🌆",desc:"Un blade runner descoperă un secret care amenință societatea.",tags:["vizual","lent","profund"]},
+
+  // ANIMAȚIE
+  {id:53,title:"Spider-Man: Into the Spider-Verse",year:2018,genre:["Animație","Acțiune"],dir:"Bob Persichetti",rating:8.4,e:"🕷️",desc:"Miles Morales devine Spider-Man și întâlnește variante din alte universuri.",tags:["inovator","animație","vizual"]},
+  {id:54,title:"The Boy and the Heron",year:2023,genre:["Animație","Fantasy"],dir:"Hayao Miyazaki",rating:7.6,e:"🦢",desc:"Un băiat intră într-o lume fantastică pentru a o găsi pe mama sa vitregă.",tags:["miyazaki","fantezie","artistic"]},
+  {id:55,title:"Soul",year:2020,genre:["Animație","Dramă"],dir:"Pete Docter",rating:8.1,e:"🎷",desc:"Un muzician descoperă lumea sufletelor înainte de naștere.",tags:["emoționant","filozofic","pixar"]},
+  {id:56,title:"Klaus",year:2019,genre:["Animație","Comedie"],dir:"Sergio Pablos",rating:8.2,e:"🎅",desc:"Originile lui Moș Crăciun într-un sătuc întunecat.",tags:["caldură","festiv","frumos"]},
+  {id:57,title:"Wolfwalkers",year:2020,genre:["Animație","Aventură"],dir:"Tomm Moore",rating:8.1,e:"🐺",desc:"O fată descoperă o lume magică a lupilor în Irlanda medievală.",tags:["artistic","magic","animație"]},
+
+  // DOCUMENTAR
+  {id:58,title:"Free Solo",year:2018,genre:["Documentar"],dir:"Jimmy Chin",rating:8.2,e:"🧗",desc:"Alex Honnold escaladează El Capitan fără coardă.",tags:["adrenalină","inspirațional","real"]},
+  {id:59,title:"13th",year:2016,genre:["Documentar"],dir:"Ava DuVernay",rating:8.2,e:"⛓️",desc:"Istoria rasismului sistemic în sistemul penal american.",tags:["important","social","educat"]},
+  {id:60,title:"My Octopus Teacher",year:2020,genre:["Documentar","Natură"],dir:"Pippa Ehrlich",rating:8.1,e:"🐙",desc:"Un scafandru dezvoltă o legătură uimitoare cu o caracatiță.",tags:["natură","emoționant","unic"]},
+
+  // ISTORIC / BIOGRAFIE
+  {id:61,title:"Schindler's List",year:1993,genre:["Dramă","Istorie"],dir:"Steven Spielberg",rating:9.0,e:"📜",desc:"Un industriaș german salvează evrei în timpul Holocaustului.",tags:["clasic","important","alb-negru"]},
+  {id:62,title:"12 Years a Slave",year:2013,genre:["Dramă","Istorie"],dir:"Steve McQueen",rating:8.1,e:"🌾",desc:"Povestea unui om liber vândut ca sclav în America de Sud.",tags:["important","dureros","real"]},
+  {id:63,title:"Bohemian Rhapsody",year:2018,genre:["Biografie","Muzică"],dir:"Bryan Singer",rating:7.9,e:"🎸",desc:"Viața și cariera lui Freddie Mercury și a trupei Queen.",tags:["muzică","inspirațional","queen"]},
+  {id:64,title:"The Crown",year:2016,genre:["Dramă","Istorie"],dir:"Peter Morgan",rating:8.7,e:"👑",desc:"Povestea reginei Elisabeta a II-a și a familiei regale britanice.",tags:["regal","britanic","serie"]},
+  {id:65,title:"Society of the Snow",year:2023,genre:["Dramă","Supraviețuire"],dir:"J.A. Bayona",rating:8.0,e:"❄️",desc:"Supraviețuitorii unui accident aviatic în Anzi luptă pentru viață.",tags:["supraviețuire","real","intens"]},
+
+  // CLASICE INTERNAȚIONALE
+  {id:66,title:"Drive My Car",year:2021,genre:["Dramă"],dir:"Ryusuke Hamaguchi",rating:7.6,e:"🚗",desc:"Un regizor de teatru în deuil face un drum lung alături de șoferița sa.",tags:["japonez","lent","profund"]},
+  {id:67,title:"A Separation",year:2011,genre:["Dramă","Thriller"],dir:"Asghar Farhadi",rating:8.3,e:"📋",desc:"O familie iraniană se destramă din cauza unui incident cu consecințe grave.",tags:["iranian","moral","premiat"]},
+  {id:68,title:"Roma",year:2018,genre:["Dramă"],dir:"Alfonso Cuarón",rating:7.7,e:"🏠",desc:"O menajeră din Ciudad de Mexico trăiește schimbări dramatice.",tags:["mexican","alb-negru","intim"]},
+  {id:69,title:"The Great Beauty",year:2013,genre:["Dramă"],dir:"Paolo Sorrentino",rating:7.8,e:"🏛️",desc:"Un jurnalist roman reflectă asupra vieții sale la 65 de ani.",tags:["italian","vizual","melancolic"]},
+  {id:70,title:"Capernaum",year:2018,genre:["Dramă"],dir:"Nadine Labaki",rating:8.4,e:"🧒",desc:"Un copil de 12 ani din Beirut își dă părinții în judecată.",tags:["libanez","dureros","important"]},
+
+  // FANTEZIE / AVENTURĂ
+  {id:71,title:"The Lord of the Rings: Fellowship",year:2001,genre:["Fantasy","Aventură"],dir:"Peter Jackson",rating:8.8,e:"💍",desc:"Frodo pornește în misiunea de a distruge Inelul Puterii.",tags:["epic","clasic","fantasy"]},
+  {id:72,title:"Pan's Labyrinth",year:2006,genre:["Fantasy","Dramă"],dir:"Guillermo del Toro",rating:8.2,e:"🌿",desc:"O fată în Spania postbelică fuge în lumea fanteziei.",tags:["fairy tale","dark","spaniol"]},
+  {id:73,title:"Princess Mononoke",year:1997,genre:["Animație","Fantasy"],dir:"Hayao Miyazaki",rating:8.4,e:"🐗",desc:"Un tânăr prins între lumea spiritelor naturii și civilizația umană.",tags:["miyazaki","ecologie","epic"]},
+  {id:74,title:"Spirited Away",year:2001,genre:["Animație","Fantasy"],dir:"Hayao Miyazaki",rating:8.6,e:"🛁",desc:"O fetiță se pierde într-o lume a spiritelor și trebuie să supraviețuiască.",tags:["miyazaki","magic","clasic"]},
+
+  // RĂZBOI
+  {id:75,title:"Dunkirk",year:2017,genre:["Război","Acțiune"],dir:"Christopher Nolan",rating:7.8,e:"🚢",desc:"Evacuarea dramatică de la Dunkerque din trei perspective.",tags:["război","intens","nolan"]},
+  {id:76,title:"1917",year:2019,genre:["Război","Dramă"],dir:"Sam Mendes",rating:8.2,e:"🪖",desc:"Doi soldați trebuie să livreze un mesaj vital într-un singur cadru.",tags:["război","tehnic","imersiv"]},
+  {id:77,title:"Hacksaw Ridge",year:2016,genre:["Război","Biografie"],dir:"Mel Gibson",rating:8.1,e:"⛑️",desc:"Un medic refuză să poarte arme dar salvează zeci de vieți.",tags:["inspirațional","război","real"]},
+  {id:78,title:"Apocalypse Now",year:1979,genre:["Război","Dramă"],dir:"Francis Ford Coppola",rating:8.4,e:"🌴",desc:"Un ofițer american caută un colonel fugit în jungla vietnameză.",tags:["clasic","existențial","intens"]},
+
+  // CRIME / GANGSTER
+  {id:79,title:"The Godfather",year:1972,genre:["Crimă","Dramă"],dir:"Francis Ford Coppola",rating:9.2,e:"🌹",desc:"Saga familiei Corleone, cea mai puternică familie mafiota din America.",tags:["clasic","masterpiece","crimă"]},
+  {id:80,title:"Goodfellas",year:1990,genre:["Crimă","Biografie"],dir:"Martin Scorsese",rating:8.7,e:"🍕",desc:"Ascensiunea și căderea unui mafiot în lumea interlopă americană.",tags:["clasic","scorsese","crimă"]},
+  {id:81,title:"The Irishman",year:2019,genre:["Crimă","Dramă"],dir:"Martin Scorsese",rating:7.8,e:"☘️",desc:"Retrospectiva unui hitman din lumea mafiei americane.",tags:["scorsese","epic","matură"]},
+  {id:82,title:"No Country for Old Men",year:2007,genre:["Thriller","Crimă"],dir:"Coen Brothers",rating:8.2,e:"💼",desc:"Un vânător găsește bani dintr-o tranzacție de droguri dusă prost.",tags:["coen","violent","filosof"]},
+
+  // PSIHOLOGIC
+  {id:83,title:"Black Swan",year:2010,genre:["Psihologic","Thriller"],dir:"Darren Aronofsky",rating:8.0,e:"🦢",desc:"O balerina obsesivă alunecă în nebunie urmărind perfecțiunea.",tags:["psihologic","intens","artă"]},
+  {id:84,title:"Requiem for a Dream",year:2000,genre:["Dramă","Psihologic"],dir:"Darren Aronofsky",rating:8.3,e:"💊",desc:"Patru oameni distruși de dependențe diferite.",tags:["intens","dureros","dependență"]},
+  {id:85,title:"Fight Club",year:1999,genre:["Dramă","Thriller"],dir:"David Fincher",rating:8.8,e:"🥊",desc:"Un ins plictisit și un săpunar haotic creează un club clandestin.",tags:["cult","răsturnări","fincher"]},
+  {id:86,title:"Memento",year:2000,genre:["Thriller","Mister"],dir:"Christopher Nolan",rating:8.4,e:"📸",desc:"Un om fără memorie pe termen scurt caută ucigașul soției lui.",tags:["nolan","non-linear","mister"]},
+
+  // RECENT 2024-2025
+  {id:87,title:"Conclave",year:2024,genre:["Thriller","Dramă"],dir:"Edward Berger",rating:7.4,e:"⛪",desc:"Intrigile politice din spatele alegerii unui nou papă.",tags:["intrigă","religios","thriller"]},
+  {id:88,title:"The Brutalist",year:2024,genre:["Dramă","Epocă"],dir:"Brady Corbet",rating:7.7,e:"🏗️",desc:"Un arhitect evreu supraviețuiește Holocaustului și construiește America postbelică.",tags:["epic","artă","ambiție"]},
+  {id:89,title:"Nosferatu",year:2024,genre:["Horror","Perioada"],dir:"Robert Eggers",rating:7.0,e:"🧛",desc:"O reinterpretare gotică și atmosferică a clasicului vampir.",tags:["horror","gotic","eggers"]},
+  {id:90,title:"A Complete Unknown",year:2024,genre:["Biografie","Muzică"],dir:"James Mangold",rating:7.3,e:"🎸",desc:"Ascensiunea lui Bob Dylan în scena folk din New York anilor '60.",tags:["muzică","biografie","inspirațional"]},
+  {id:91,title:"Emilia Pérez",year:2024,genre:["Musical","Crimă"],dir:"Jacques Audiard",rating:6.8,e:"🌺",desc:"Un cartel mexican și o transformare identitară spectaculoasă.",tags:["unic","muzical","mexican"]},
+  {id:92,title:"Wicked",year:2024,genre:["Musical","Fantasy"],dir:"Jon M. Chu",rating:7.5,e:"🧙‍♀️",desc:"Originile vrăjitoarelor din Oz — prietenie, putere și prejudecată.",tags:["musical","colorat","spectacol"]},
+  {id:93,title:"Alien: Romulus",year:2024,genre:["Sci-Fi","Horror"],dir:"Fede Álvarez",rating:7.3,e:"👾",desc:"Tineri astronauți explorează o stație abandonată infestată cu Xenomorphi.",tags:["horror","sci-fi","adrenalină"]},
+  {id:94,title:"Longlegs",year:2024,genre:["Thriller","Horror"],dir:"Osgood Perkins",rating:6.1,e:"🔴",desc:"Un agent FBI caută un serial killer cu un modus operandi ocult.",tags:["thriller","atmosferic","mister"]},
+  {id:95,title:"I Saw the TV Glow",year:2024,genre:["Horror","Drama"],dir:"Jane Schoenbechler",rating:6.8,e:"📺",desc:"Doi adolescenți sunt obsedați de un show TV cu consecințe ciudate.",tags:["art-house","adolescent","tulburător"]},
+  {id:96,title:"Hit Man",year:2024,genre:["Comedie","Thriller"],dir:"Richard Linklater",rating:7.5,e:"🕵️",desc:"Un profesor joacă rolul unui hitman pentru a prinde criminali.",tags:["comedie","linklater","ușor"]},
+  {id:97,title:"Twisters",year:2024,genre:["Acțiune","Aventură"],dir:"Lee Isaac Chung",rating:7.2,e:"🌪️",desc:"Urmăritori de tornade confruntă furtuni extreme.",tags:["acțiune","spectacol","adrenalină"]},
+  {id:98,title:"Inside Out 2",year:2024,genre:["Animație","Comedie"],dir:"Kelsey Mann",rating:7.5,e:"🧡",desc:"Riley intră în adolescență și emoțiile ei se complică.",tags:["pixar","animație","emoționant"]},
+  {id:99,title:"Kingdom of the Planet of the Apes",year:2024,genre:["Sci-Fi","Acțiune"],dir:"Wes Ball",rating:6.8,e:"🦍",desc:"Un nou capitol din saga maimuțelor care stăpânesc Pământul.",tags:["sci-fi","acțiune","distopie"]},
+  {id:100,title:"Furiosa",year:2024,genre:["Acțiune","Aventură"],dir:"George Miller",rating:7.4,e:"⚡",desc:"Originea lui Furiosa — prequelul lui Fury Road.",tags:["acțiune","epic","adrenalină"]},
+];
+
+const STORAGE_KEY = "cinemaAI_v2";
+
+function loadPrefs() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {liked:[],disliked:[],seen:[]}; }
+  catch { return {liked:[],disliked:[],seen:[]}; }
+}
+function savePrefs(p) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch {}
+}
+
+let prefs = loadPrefs();
+let currentMovie = null;
+let currentVote = null;
+let aiLoading = false;
+
+function getRecommendation() {
+  const unseen = MOVIES.filter(m => !prefs.seen.includes(m.id));
+  const pool = unseen.length > 0 ? unseen : MOVIES;
+
+  const likedMovies = MOVIES.filter(m => prefs.liked.includes(m.id));
+  const dislikedMovies = MOVIES.filter(m => prefs.disliked.includes(m.id));
+
+  if (likedMovies.length === 0) {
+    const idx = Math.floor(Date.now() / 86400000) % pool.length;
+    return pool[idx];
+  }
+
+  const likedTags = likedMovies.flatMap(m => m.tags);
+  const likedGenres = likedMovies.flatMap(m => m.genre);
+  const dislikedTags = dislikedMovies.flatMap(m => m.tags);
+  const dislikedGenres = dislikedMovies.flatMap(m => m.genre);
+
+  const scored = pool.map(m => {
+    let score = m.rating;
+    m.tags.forEach(t => { if (likedTags.includes(t)) score += 2.5; });
+    m.genre.forEach(g => { if (likedGenres.includes(g)) score += 2; });
+    m.tags.forEach(t => { if (dislikedTags.includes(t)) score -= 4; });
+    m.genre.forEach(g => { if (dislikedGenres.includes(g)) score -= 2; });
+    // add slight randomness
+    score += (Math.random() - 0.5) * 1.5;
+    return {...m, score};
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored[0];
+function fetchAiNote(movie) {
+  const noteEl = document.getElementById('ai-note');
+
+  const likedGenres = MOVIES
+    .filter(m => prefs.liked.includes(m.id))
+    .flatMap(m => m.genre);
+
+  let message = "";
+
+  if (likedGenres.includes(movie.genre[0])) {
+    message = `Ți-am ales acest film pentru că se potrivește cu preferințele tale pentru ${movie.genre[0]}. Are șanse mari să-ți placă.`;
+  } else if (prefs.liked.length > 5) {
+    message = `Bazat pe voturile tale, acest film îți extinde puțin gusturile fără să iasă prea mult din zona ta preferată.`;
+  } else {
+    message = `O recomandare bună pentru azi — apreciat de critici și excelent pentru explorarea gusturilor tale cinematografice.`;
+  }
+
+  noteEl.innerHTML = `<p>"${message}"</p>`;
+}
+
+function renderMovie(movie) {
+  currentMovie = movie;
+  currentVote = prefs.liked.includes(movie.id) ? 'like' : prefs.disliked.includes(movie.id) ? 'dislike' : null;
+
+  const card = document.getElementById('card');
+  card.classList.remove('visible');
+
+  setTimeout(() => {
+    document.getElementById('poster').textContent = movie.e;
+    document.getElementById('rating').textContent = movie.rating;
+    document.getElementById('year').textContent = movie.year;
+    document.getElementById('title').textContent = movie.title;
+    document.getElementById('director').textContent = `regia ${movie.dir}`;
+    document.getElementById('desc').textContent = movie.desc;
+    document.getElementById('genres').innerHTML = movie.genre.map(g => `<span class="genre-tag">${g}</span>`).join('');
+    updateVoteUI();
+    updateStats();
+    card.classList.add('visible');
+    fetchAiNote(movie);
+  }, 300);
+}
+
+function updateVoteUI() {
+  const lc = document.getElementById('like-circle');
+  const dc = document.getElementById('dislike-circle');
+  const ll = document.getElementById('like-label');
+  const dl = document.getElementById('dislike-label');
+  lc.className = 'vote-circle' + (currentVote === 'like' ? ' liked' : '');
+  dc.className = 'vote-circle' + (currentVote === 'dislike' ? ' disliked' : '');
+  ll.className = 'vote-label' + (currentVote === 'like' ? ' liked' : '');
+  dl.className = 'vote-label' + (currentVote === 'dislike' ? ' disliked' : '');
+}
+
+function updateStats() {
+  document.getElementById('liked-count').textContent = prefs.liked.length;
+  document.getElementById('disliked-count').textContent = prefs.disliked.length;
+  document.getElementById('seen-count').textContent = prefs.seen.length;
+}
+
+function vote(type) {
+  if (!currentMovie) return;
+  const id = currentMovie.id;
+
+  prefs.liked = prefs.liked.filter(x => x !== id);
+  prefs.disliked = prefs.disliked.filter(x => x !== id);
+
+  if (currentVote === type) {
+    currentVote = null;
+  } else {
+    if (type === 'like') prefs.liked.push(id);
+    else prefs.disliked.push(id);
+    currentVote = type;
+
+    const circle = document.getElementById(type === 'like' ? 'like-circle' : 'dislike-circle');
+    circle.classList.add('bounce');
+    setTimeout(() => circle.classList.remove('bounce'), 600);
+  }
+
+  savePrefs(prefs);
+  updateVoteUI();
+  updateStats();
+}
+
+function nextMovie() {
+  if (currentMovie && !prefs.seen.includes(currentMovie.id)) {
+    prefs.seen.push(currentMovie.id);
+    savePrefs(prefs);
+  }
+  const next = getRecommendation();
+  renderMovie(next);
+}
+
+function showTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && tab === 'discover') || (i === 1 && tab === 'history'));
+  });
+  document.getElementById('discover-tab').style.display = tab === 'discover' ? 'block' : 'none';
+  document.getElementById('history-tab').style.display = tab === 'history' ? 'block' : 'none';
+
+  if (tab === 'history') renderHistory();
+}
+
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  const allVoted = [...prefs.liked.map(id => ({id, v:'like'})), ...prefs.disliked.map(id => ({id, v:'dislike'}))];
+
+  if (allVoted.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-faint);font-size:13px;">Niciun film votat încă.<br>Apasă 👍 sau 👎 pe filme!</div>`;
+    return;
+  }
+
+  list.innerHTML = allVoted.map(({id, v}) => {
+    const m = MOVIES.find(x => x.id === id);
+    if (!m) return '';
+    return `<div class="history-item">
+      <div class="history-emoji">${m.e}</div>
+      <div class="history-info">
+        <div class="history-title">${m.title}</div>
+        <div class="history-year">${m.year} · ${m.genre[0]}</div>
+      </div>
+      <div class="history-vote">${v === 'like' ? '👍' : '👎'}</div>
+    </div>`;
+  }).join('');
+}
+
+function resetAll() {
+  if (confirm('Ești sigur că vrei să ștergi toate preferințele?')) {
+    prefs = {liked:[], disliked:[], seen:[]};
+    savePrefs(prefs);
+    updateStats();
+    showTab('discover');
+    renderMovie(getRecommendation());
+  }
+}
+
+// Init
+window.addEventListener('load', () => {
+  const first = getRecommendation();
+  renderMovie(first);
+});
+</script>
+</body>
+</html>
